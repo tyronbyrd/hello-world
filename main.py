@@ -13,6 +13,7 @@ class MusicalCryptogramGenerator:
         # Initialize Pygame mixer
         pygame.mixer.init()
 
+
         # Mapping of note values to frequencies (Hz)
         self.NOTE_FREQS = {
             'C0': 16.35,
@@ -129,7 +130,7 @@ class MusicalCryptogramGenerator:
         # Initialize Tkinter
         self.root = Tk()
         self.root.title("Musical Cryptogram Generator v.10.0")
-        self.root.geometry("390x300")
+        self.root.geometry("390x350")
         self.root.configure(bg="#229b75")
         self.style = Style()
         self.style.configure('TButton', foreground='black', background='#4bae75', font=('Arial', 12, "bold"))
@@ -139,31 +140,50 @@ class MusicalCryptogramGenerator:
         self.input_label.place(x=30, y=11)
         self.input_entry = Entry(self.root)
         self.input_entry.place(x=190, y=9)
-        self.process_button = Button(self.root, text="Translate!", command=self.translate_and_render)
 
-        self.process_button.place(x=140, y=40)
+        self.bpm_label = Label(self.root, text="Set BPM:")
+        self.bpm_label.place(x=30, y=40)
+        self.bpm_entry = Entry(self.root)
+        self.bpm_entry.place(x=190, y=40)
+        self.bpm_entry.insert(0, "60")  # Default value of 60 BPM
+
+        # Binding to auto-update duration based on BPM
+        self.bpm_entry.bind("<KeyRelease>", self.update_duration_from_bpm)
+
+        self.process_button = Button(self.root, text="Translate!", command=self.translate_and_render)
+        self.process_button.place(x=140, y=70)
         self.playback_button = Button(self.root, text="Playback!", command=self.play_sound_from_notes)
-        self.playback_button.place(x=140, y=70)
+        self.playback_button.place(x=140, y=100)
+
         self.result_label = Label(self.root, text="Result:")
         self.result_label.configure(bg="#229b75")
-        self.result_label.place(x=169, y=105)
+        self.result_label.place(x=169, y=135)
         self.result_text = scrolledtext.ScrolledText(self.root, width=50, height=10, wrap="word")
-        self.result_text.place(x=10, y=130)
+        self.result_text.place(x=10, y=160)
+
         self.icon_image = Image.open('icon.png')
         self.icon_image = self.icon_image.resize((24, 24), resample=Image.BICUBIC)
         self.icon_photo = ImageTk.PhotoImage(self.icon_image)
         self.icon_button = Button(self.root, image=self.icon_photo, command=self.open_webpage)
-        self.icon_button.place(x=176, y=260)
+        self.icon_button.place(x=176, y=310)
 
-        # Initialize playback notes
+        # Initialize playback notes and duration
         self.playback_notes = []
+        self.duration = 1  # Default duration (1 second per beat)
+
+    def update_duration_from_bpm(self, event=None):
+        bpm = self.bpm_entry.get()
+        try:
+            bpm_value = int(bpm)
+            self.duration = 60 / bpm_value  # Calculate duration based on BPM
+        except ValueError:
+            self.duration = 1  # Fallback to 1 second if invalid BPM is provided
 
     def get_note_value(self, letter):
         # Implement get_note_value function
         alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
         if letter.isalpha():
-            if letter.upper() in alphabet:
-                # lets try deleting the below + 1 (that worked)
+            #if letter.upper() in alphabet:
                 return alphabet.index(letter.upper())
 
     def get_note_name(self, note_value):
@@ -186,8 +206,8 @@ class MusicalCryptogramGenerator:
             if letter == ' ':
                 notes.append('_')  # Add a blank space as a rest with the value 00.00
             else:
-                note_value = self.get_note_value(letter)  # Corrected
-                note_name = self.get_note_name(note_value)  # Corrected
+                note_value = self.get_note_value(letter)
+                note_name = self.get_note_name(note_value)
                 notes.append(note_name)
         return notes
 
@@ -197,12 +217,10 @@ class MusicalCryptogramGenerator:
         for note in notes:
             if note == '_':
                 text_notes.append('   ')  # Add three spaces for a rest
-            # write a module here that if note = CHAR/NUM format text_notes.appendf"{note} minus the # and + superscript #.
             elif note[0].isalpha() and note[-1].isdigit():
                 SUP = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
                 note = note.translate(SUP)
                 text_notes.append(note)
-            # otherwise just handle normally by appending each note
             else:
                 text_notes.append(f"{note}")
         return ''.join(text_notes)
@@ -223,9 +241,9 @@ class MusicalCryptogramGenerator:
                 audio += rest
             else:
                 note, octave = note[:-1], note[-1]
-                frequency = self.NOTE_FREQS.get(f"{note}{octave}")  # Corrected
+                frequency = self.NOTE_FREQS.get(f"{note}{octave}")
                 if frequency:
-                    note_audio = self.generate_sine_wave(frequency, duration)  # Corrected
+                    note_audio = self.generate_sine_wave(frequency, duration)
                     audio += note_audio
                 else:
                     print(f"Invalid note: {note}{octave}")
@@ -239,15 +257,13 @@ class MusicalCryptogramGenerator:
         input_text = ''.join(filter(whitelist.__contains__, input_text1))
         musical_cryptogram = self.convert_to_musical_cryptogram(input_text)
         text_notes = self.notes_to_text_notes(musical_cryptogram)
-        self.result_text.delete('1.0', END)  # Corrected
-        self.result_text.insert(END, text_notes)  # Corrected
+        self.result_text.delete('1.0', END)
+        self.result_text.insert(END, text_notes)
         self.playback_notes = musical_cryptogram
 
     def play_sound_from_notes(self):
         # Implement play_sound_from_notes function
-        # FIXME: No fixes needed but adjust this value below to adjust bpm! 1 = 1 second
-        duration = 1  # Adjust the duration as needed -
-        self.play_notes(self.playback_notes, duration)  # Corrected
+        self.play_notes(self.playback_notes, self.duration)
 
         # Use pygame to play the exported audio file
         pygame.mixer.music.load("output.wav")
@@ -257,13 +273,14 @@ class MusicalCryptogramGenerator:
 
     def translate_and_render(self):
         self.process_input_string()
-        #self.play_sound_from_notes()
 
     def open_webpage(self):
-        webbrowser.open("https://hyperfollow.com/EponymousSparrow?_gl=1*5hadnh*_ga*MjI5NTY1NDE3LjE2ODY3NzAxMzI.*_ga_PQXYYERT25*MTY4ODM4ODAwOC4zLjEuMTY4ODM4ODUyMi42MC4wLjA.&_ga=2.120660431.69287412.1688387995-229565417.1686770132")
+        webbrowser.open(
+            "https://hyperfollow.com/EponymousSparrow?_gl=1*5hadnh*_ga*MjI5NTY1NDE3LjE2ODY3NzAxMzI.*_ga_PQXYYERT25*MTY4ODM4ODAwOC4zLjEuMTY4ODM4ODUyMi42MC4wLjA.&_ga=2.120660431.69287412.1688387995-229565417.1686770132")
 
     def run(self):
         self.root.mainloop()
+
 
 # Usage example:
 if __name__ == "__main__":
